@@ -1,0 +1,11 @@
+[package]
+name = "pwman"
+version = "0.1.0"
+edition = "2024"
+description = "A simple CLI based password manager"
+
+
+[dependencies]
+clap = { version = "4.5.47", features = ["derive"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.143"
