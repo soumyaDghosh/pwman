@@ -13,20 +13,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Setup GitHub Action Cache script
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const targetDir = path.join(process.env.GITHUB_WORKSPACE, "setup_env.sh");
+            const envVars = {
+              SCCACHE_GHA_ENABLED: "on",
+              ACTIONS_CACHE_SERVICE_V2: "on",
+              ACTIONS_RUNTIME_TOKEN: process.env['ACTIONS_RUNTIME_TOKEN'],
+              ACTIONS_RESULTS_URL: process.env['ACTIONS_RESULTS_URL'],
+            };
+            const content = Object.entries(envVars)
+                            .filter(([_, value]) => value !== undefined)
+                            .map(([key, value]) => `export ${key}="${value}"`)
+                            .join('\n')
+            fs.writeFileSync(targetDir, content);
 
-      - name: Run sccache-action
-        # This action installs sccache and exports GHA credentials
-        uses: mozilla-actions/sccache-action@v0.0.9
-
-      - name: Build Project
-        # sccache will automatically intercept this and use the GHA cache
-        run: cargo build --release
-
-      - name: Show sccache stats
-        # Useful for verifying that hits are actually happening
-        run: sccache --show-stats
-
-      - name: Fail step
-        run: exit 1
+      - uses: snapcore/action-build@v1
+        id: build
+        with:
+          snapcraft-channel: "8.x/stable"
+          snapcraft-args: "--verbosity debug"
