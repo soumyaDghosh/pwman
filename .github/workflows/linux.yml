@@ -1,0 +1,32 @@
+name: Continuous Integration
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # These tell sccache to use the GHA backend and wrap the compiler
+      SCCACHE_GHA_ENABLED: "true"
+      RUSTC_WRAPPER: "sccache"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run sccache-action
+        # This action installs sccache and exports GHA credentials
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: Build Project
+        # sccache will automatically intercept this and use the GHA cache
+        run: cargo build --release
+
+      - name: Show sccache stats
+        # Useful for verifying that hits are actually happening
+        run: sccache --show-stats
+
+      - name: Fail step
+        run: exit 1
