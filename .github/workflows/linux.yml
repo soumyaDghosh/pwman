@@ -3,12 +3,12 @@ on: [push, pull_request, workflow_dispatch]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    env:
-      # These tell sccache to use the GHA backend and wrap the compiler
-      SCCACHE_GHA_ENABLED: "true"
-      RUSTC_WRAPPER: "sccache"
-
+    strategy:
+      matrix:
+        architecture: [amd64, arm64]
+    runs-on: ${{ matrix.architecture == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    outputs:
+      snap: ${{ steps.build.outputs.snap }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -36,4 +36,17 @@ jobs:
         id: build
         with:
           snapcraft-channel: "8.x/stable"
-          snapcraft-args: "--verbosity debug"
+
+  upload-snap:
+    name: Upload snap
+    needs: build
+    strategy:
+      matrix:
+        architecture: [amd64, arm64]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Upload the built snap 
+      uses: actions/upload-artifact@v6
+      with:
+        name: pwman-${{ matrix.architecture }}
+        path: ${{ needs.build.outputs.snap }}
