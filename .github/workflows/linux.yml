@@ -17,36 +17,30 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const fs = require('fs');
-            const path = require('path');
-            const targetDir = path.join(process.env.GITHUB_WORKSPACE, "setup_env.sh");
-            const envVars = {
-              SCCACHE_GHA_ENABLED: "on",
-              ACTIONS_CACHE_SERVICE_V2: "on",
-              ACTIONS_RUNTIME_TOKEN: process.env['ACTIONS_RUNTIME_TOKEN'],
-              ACTIONS_RESULTS_URL: process.env['ACTIONS_RESULTS_URL'],
-            };
-            const content = Object.entries(envVars)
-                            .filter(([_, value]) => value !== undefined)
-                            .map(([key, value]) => `export ${key}="${value}"`)
-                            .join('\n')
-            fs.writeFileSync(targetDir, content);
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env['ACTIONS_RESULTS_URL'])
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env['ACTIONS_RUNTIME_TOKEN'])
+
+      - name: Ensure LXD installed
+        run: |
+          set -x
+          sudo snap install lxd --channel latest/stable
+          getent group lxd | grep -qwF "$USER" || sudo usermod -aG lxd "$USER"
+          newgrp lxd
+          sudo lxd init --auto
+          sudo lxc profile show default > profile.yaml
+          yq -i '.config."environment.ACTIONS_RESULTS_URL" = strenv(ACTIONS_RESULTS_URL)' profile.yaml
+          yq -i '.config."environment.ACTIONS_RUNTIME_TOKEN" = strenv(ACTIONS_RUNTIME_TOKEN)' profile.yaml
+          yq -i '.config."environment.SCCACHE_GHA_ENABLED" = "on"' profile.yaml
+          yq -i '.config."environment.ACTIONS_CACHE_SERVICE_V2" = "on"' profile.yaml
+          sudo lxc profile edit default < profile.yaml
 
       - uses: snapcore/action-build@v1
         id: build
         with:
           snapcraft-channel: "8.x/stable"
 
-  upload-snap:
-    name: Upload snap
-    needs: build
-    strategy:
-      matrix:
-        architecture: [amd64, arm64]
-    runs-on: ubuntu-latest
-    steps:
-    - name: Upload the built snap 
-      uses: actions/upload-artifact@v6
-      with:
-        name: pwman-${{ matrix.architecture }}
-        path: ${{ needs.build.outputs.snap }}
+      - name: Upload the built snap 
+        uses: actions/upload-artifact@v6
+        with:
+          name: pwman-${{ matrix.architecture }}
+          path: ${{ steps.build.outputs.snap }}

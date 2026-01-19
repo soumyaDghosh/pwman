@@ -21,8 +21,6 @@ parts:
       - libssl-dev
     override-stage: |
       craftctl default
-      set -x
-      source $CRAFT_PROJECT_DIR/setup_env.sh
       sccache --start-server
     override-prime: ""
   my-part:
