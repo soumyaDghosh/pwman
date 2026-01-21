@@ -30,5 +30,6 @@ parts:
     build-environment:
       - RUSTC_WRAPPER: sccache
     override-build: |
+      echo $MY_VAR
       craftctl default
       sccache --show-stats
